@@ -33,7 +33,7 @@ async function fetchJson(url, headers, timeoutMs = 8000, label) {
     if (!res.ok) return null;
     return await res.json();
   } catch (e) {
-    if (label) httpDiag[label] = "net";
+    if (label) httpDiag[label] = (e && e.name ? e.name : "net") + ":" + String((e && (e.cause ? e.cause.code || e.cause.message : e.message)) || "").slice(0, 60);
     return null;
   } finally {
     clearTimeout(t);

@@ -20,6 +20,8 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 
 let lastGood = { cricket: null, football: null };
 let lastFetch = { at: 0, data: null };
+let diagCricket = { cricScore: "n/a", matches: "n/a", live: 0, recent: 0, upcoming: 0, out: 0 };
+let diagFootball = { live: "n/a", fin: "n/a", sched: "n/a", out: 0 };
 
 async function fetchJson(url, headers, timeoutMs = 8000) {
   const ctrl = new AbortController();
@@ -52,9 +54,18 @@ function isoDay(offset) {
 // ---------- cricket ----------
 const CRICKET_BASE = "https://api.cricketdata.org/v1";
 const RELEVANT = ["pakistan", "india", "australia", "england", "sri lanka", "bangladesh", "new zealand", "south africa", "west indies", "afghanistan", "zimbabwe", "ireland", "psl", "ipl", "bbl", "cpl", "ilt20", "bpl", "wpl", "world cup", "asia cup", "champions trophy", "ashes", "test championship"];
-function relevantCricket(name) {
-  const n = (name || "").toLowerCase();
-  return RELEVANT.some((k) => n.includes(k));
+const TEAM_CODES = { pak: 1, ind: 1, aus: 1, eng: 1, sl: 1, ban: 1, nz: 1, sa: 1, wi: 1, afg: 1, zim: 1, ire: 1 };
+function relevantCricket(m) {
+  const n = ((m && m.name) || "").toLowerCase();
+  if (RELEVANT.some((k) => n.includes(k))) return true;
+  const teams = (m && Array.isArray(m.teams)) ? m.teams : [];
+  for (const t of teams) {
+    const tl = (t || "").toLowerCase();
+    if (RELEVANT.some((k) => tl.includes(k))) return true;
+    const tokens = tl.split(/[^a-z]+/).filter(Boolean);
+    if (tokens.some((tok) => TEAM_CODES[tok])) return true;
+  }
+  return false;
 }
 function leagueFromName(name) {
   const n = (name || "").toLowerCase();
@@ -138,6 +149,7 @@ async function fetchCricket() {
   const all = await fetchJson(CRICKET_BASE + "/matches?apikey=" + encodeURIComponent(CRICKET_KEY) + "&offset=0");
   const liveOk = live && Array.isArray(live.data);
   const allOk = all && Array.isArray(all.data);
+  diagCricket = { cricScore: liveOk ? live.data.length : "err", matches: allOk ? all.data.length : "err", live: 0, recent: 0, upcoming: 0, out: 0 };
   if (!liveOk && !allOk) return null;
   const liveMatches = liveOk ? live.data : [];
   const allMatches = allOk ? all.data : [];
@@ -155,7 +167,7 @@ async function fetchCricket() {
   const upcoming = [];
   for (const m of allMatches) {
     if (!m || m.id == null || seen.has(String(m.id))) continue;
-    if (!relevantCricket(m.name || "")) continue;
+    if (!relevantCricket(m)) continue;
     const t = Date.parse(m.dateTimeGMT || "");
     if (m.matchEnded) {
       if (!isNaN(t) && t > now - 2 * 86400000) recent.push(m);
@@ -172,6 +184,10 @@ async function fetchCricket() {
   upcoming.sort((a, b) => (Date.parse(a.dateTimeGMT || "") || 0) - (Date.parse(b.dateTimeGMT || "") || 0));
   recent.slice(0, 6).forEach(push);
   upcoming.slice(0, 6).forEach(push);
+  diagCricket.live = liveMatches.length + liveExtra.length;
+  diagCricket.recent = recent.length;
+  diagCricket.upcoming = upcoming.length;
+  diagCricket.out = out.slice(0, 12).length;
   return out.slice(0, 12);
 }
 
@@ -248,6 +264,12 @@ async function fetchFootball() {
   const fin = await fetchJson(FOOTBALL_BASE + "/matches?status=FINISHED&dateFrom=" + isoDay(-1) + "&dateTo=" + isoDay(0), h);
   const sched = await fetchJson(FOOTBALL_BASE + "/matches?status=SCHEDULED&dateFrom=" + isoDay(0) + "&dateTo=" + isoDay(7), h);
   const okCount = [live, fin, sched].filter((r) => r && Array.isArray(r.matches)).length;
+  diagFootball = {
+    live: live && Array.isArray(live.matches) ? live.matches.length : "err",
+    fin: fin && Array.isArray(fin.matches) ? fin.matches.length : "err",
+    sched: sched && Array.isArray(sched.matches) ? sched.matches.length : "err",
+    out: 0,
+  };
   if (okCount === 0) return null;
   const out = [];
   const seen = new Set();
@@ -269,6 +291,7 @@ async function fetchFootball() {
   pushList(live, 8);
   pushList(fin, 4, (a, b) => (Date.parse(b.utcDate || "") || 0) - (Date.parse(a.utcDate || "") || 0));
   pushList(sched, 6, (a, b) => (Date.parse(a.utcDate || "") || 0) - (Date.parse(b.utcDate || "") || 0));
+  diagFootball.out = out.slice(0, 12).length;
   return out.slice(0, 12);
 }
 
@@ -298,7 +321,7 @@ exports.handler = async (event) => {
 
 function respond(data, debug, source) {
   const body = debug
-    ? { ...data, _source: source, _keys: { cricket: !!CRICKET_KEY, football: !!FOOTBALL_KEY } }
+    ? { ...data, _source: source, _keys: { cricket: !!CRICKET_KEY, football: !!FOOTBALL_KEY }, _diag: { cricket: diagCricket, football: diagFootball } }
     : data;
   return {
     statusCode: 200,

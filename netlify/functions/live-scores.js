@@ -23,14 +23,17 @@ let lastFetch = { at: 0, data: null };
 let diagCricket = { cricScore: "n/a", matches: "n/a", live: 0, recent: 0, upcoming: 0, out: 0 };
 let diagFootball = { live: "n/a", fin: "n/a", sched: "n/a", out: 0 };
 
-async function fetchJson(url, headers, timeoutMs = 8000) {
+const httpDiag = {};
+async function fetchJson(url, headers, timeoutMs = 8000, label) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const res = await fetch(url, { headers, signal: ctrl.signal });
+    if (label) httpDiag[label] = res.status;
     if (!res.ok) return null;
     return await res.json();
   } catch (e) {
+    if (label) httpDiag[label] = "net";
     return null;
   } finally {
     clearTimeout(t);
@@ -142,14 +145,14 @@ function mapCricket(m) {
 }
 async function fetchCricket() {
   if (!CRICKET_KEY) return null;
-  let live = await fetchJson(CRICKET_BASE + "/cricScore?apikey=" + encodeURIComponent(CRICKET_KEY));
+  let live = await fetchJson(CRICKET_BASE + "/cricScore?apikey=" + encodeURIComponent(CRICKET_KEY), undefined, 8000, "cricScore");
   if (!live || !Array.isArray(live.data)) {
-    live = await fetchJson(CRICKET_BASE + "/scores?apikey=" + encodeURIComponent(CRICKET_KEY));
+    live = await fetchJson(CRICKET_BASE + "/scores?apikey=" + encodeURIComponent(CRICKET_KEY), undefined, 8000, "scores");
   }
-  const all = await fetchJson(CRICKET_BASE + "/matches?apikey=" + encodeURIComponent(CRICKET_KEY) + "&offset=0");
+  const all = await fetchJson(CRICKET_BASE + "/matches?apikey=" + encodeURIComponent(CRICKET_KEY) + "&offset=0", undefined, 8000, "matches");
   const liveOk = live && Array.isArray(live.data);
   const allOk = all && Array.isArray(all.data);
-  diagCricket = { cricScore: liveOk ? live.data.length : "err", matches: allOk ? all.data.length : "err", live: 0, recent: 0, upcoming: 0, out: 0 };
+  diagCricket = { cricScore: liveOk ? live.data.length : "err", matches: allOk ? all.data.length : "err", live: 0, recent: 0, upcoming: 0, out: 0, http: { cricScore: httpDiag.cricScore || "n/a", scores: httpDiag.scores || "n/a", matches: httpDiag.matches || "n/a" }, sampleNames: allOk ? all.data.slice(0, 5).map((m) => m.name || "") : [] };
   if (!liveOk && !allOk) return null;
   const liveMatches = liveOk ? live.data : [];
   const allMatches = allOk ? all.data : [];
@@ -260,15 +263,17 @@ function mapFootball(m) {
 async function fetchFootball() {
   if (!FOOTBALL_KEY) return null;
   const h = footballHeaders();
-  const live = await fetchJson(FOOTBALL_BASE + "/matches?status=LIVE", h);
-  const fin = await fetchJson(FOOTBALL_BASE + "/matches?status=FINISHED&dateFrom=" + isoDay(-1) + "&dateTo=" + isoDay(0), h);
-  const sched = await fetchJson(FOOTBALL_BASE + "/matches?status=SCHEDULED&dateFrom=" + isoDay(0) + "&dateTo=" + isoDay(7), h);
+  const live = await fetchJson(FOOTBALL_BASE + "/matches?status=LIVE", h, 8000, "fd-live");
+  const fin = await fetchJson(FOOTBALL_BASE + "/matches?status=FINISHED&dateFrom=" + isoDay(-1) + "&dateTo=" + isoDay(0), h, 8000, "fd-fin");
+  const sched = await fetchJson(FOOTBALL_BASE + "/matches?status=SCHEDULED&dateFrom=" + isoDay(0) + "&dateTo=" + isoDay(7), h, 8000, "fd-sched");
   const okCount = [live, fin, sched].filter((r) => r && Array.isArray(r.matches)).length;
   diagFootball = {
     live: live && Array.isArray(live.matches) ? live.matches.length : "err",
     fin: fin && Array.isArray(fin.matches) ? fin.matches.length : "err",
     sched: sched && Array.isArray(sched.matches) ? sched.matches.length : "err",
     out: 0,
+    http: { live: httpDiag["fd-live"] || "n/a", fin: httpDiag["fd-fin"] || "n/a", sched: httpDiag["fd-sched"] || "n/a" },
+    schedSkipped: sched && Array.isArray(sched.matches) ? sched.matches.slice(0, 8).map((m) => ((m.competition || {}).code || "?") + ":" + (m.status || "?") + ":" + ((m.homeTeam || {}).shortName || "?") + " v " + ((m.awayTeam || {}).shortName || "?")) : [],
   };
   if (okCount === 0) return null;
   const out = [];

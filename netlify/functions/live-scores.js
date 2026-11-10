@@ -1,7 +1,11 @@
 // Netlify Function: GET /.netlify/functions/live-scores
-// Proxies CricketData.org (cricket) and football-data.org (football) using
-// API keys stored as Netlify environment variables (CRICKETDATA_API_KEY,
-// FOOTBALLDATA_API_KEY). Keys are never exposed to the browser.
+// Proxies CricketData.org (cricket, primary) and football-data.org
+// (football) using API keys stored as Netlify environment variables
+// (CRICKETDATA_API_KEY, FOOTBALLDATA_API_KEY). Keys are never exposed to
+// the browser. Cricket falls back to SportScore (free, no key) when
+// CricketData is unreachable — SportScore gives basic scores only (no
+// overs, no scorecard; Test scores are often missing) and its terms
+// require a visible "Powered by SportScore" link on the page.
 // Response: { cricket: [...], football: [...], updated: "<ISO>" }
 // The page expects exactly this shape (its loadLiveScores/normMatch):
 //  per match: id (unique per sport, stable across polls), cat
@@ -20,7 +24,7 @@ const CACHE_TTL_MS = 15 * 60 * 1000;
 
 let lastGood = { cricket: null, football: null };
 let lastFetch = { at: 0, data: null };
-let diagCricket = { cricScore: "n/a", matches: "n/a", live: 0, recent: 0, upcoming: 0, out: 0 };
+let diagCricket = { cricScore: "n/a", matches: "n/a", live: 0, recent: 0, upcoming: 0, out: 0, sportScore: "n/a" };
 let diagFootball = { live: "n/a", fin: "n/a", sched: "n/a", out: 0 };
 
 const httpDiag = {};
@@ -143,7 +147,7 @@ function mapCricket(m) {
     detail,
   };
 }
-async function fetchCricket() {
+async function fetchCricketData() {
   if (!CRICKET_KEY) return null;
   let live = await fetchJson(CRICKET_BASE + "/cricScore?apikey=" + encodeURIComponent(CRICKET_KEY), undefined, 8000, "cricScore");
   if (!live || !Array.isArray(live.data)) {
@@ -192,6 +196,121 @@ async function fetchCricket() {
   diagCricket.upcoming = upcoming.length;
   diagCricket.out = out.slice(0, 12).length;
   return out.slice(0, 12);
+}
+
+// ---------- cricket via SportScore (free, no key; basic scores only) ----------
+const SPORTSCORE_BASE = "https://sportscore.com/api/widget/matches/?sport=cricket&limit=50&src=cricgoals.online";
+function ssScore(s) {
+  if (s == null) return "";
+  const t = String(s).trim();
+  return t === "-" ? "" : t;
+}
+function ssResultText(home, away, hs, as) {
+  const parse = (s) => {
+    const m = /^(\d+)\/(\d+)$/.exec(s || "");
+    return m ? { r: parseInt(m[1], 10), w: parseInt(m[2], 10) } : null;
+  };
+  const h = parse(hs), a = parse(as);
+  if (!h || !a || h.r === a.r) return "Finished";
+  const win = h.r > a.r ? { n: home, s: h, o: a } : { n: away, s: a, o: h };
+  if (win.o.w === 10) return win.n + " won by " + (win.s.r - win.o.r) + " runs";
+  return win.n + " won by " + (10 - win.s.w) + " wickets";
+}
+function ssFmt(comp) {
+  const c = (comp || "").toLowerCase();
+  if (c.includes("test")) return "Test";
+  if (c.includes("odi")) return "ODI";
+  if (c.includes("t10")) return "T10";
+  if (c.includes("t20") || /psl|ipl|bbl|cpl|ilt20|bpl|wpl|big bash|hundred/.test(c)) return "T20";
+  if (c.includes("first class")) return "First Class";
+  if (c.includes("world cup") || c.includes("asia cup") || c.includes("champions trophy") || c.includes("one day")) return "ODI";
+  return "Cricket";
+}
+const SS_NATIONAL = ["pakistan", "india", "australia", "england", "sri lanka", "bangladesh", "new zealand", "south africa", "west indies", "afghanistan", "zimbabwe", "ireland"];
+const SS_LEAGUES = [/pakistan super league/, /\bpsl\b/, /indian premier league/, /\bipl\b/, /big bash/, /caribbean premier/, /\bcpl\b/, /ilt20/, /international league t20/, /bangladesh premier/, /\bbpl\b/, /world cup/, /asia cup/, /champions trophy/, /ashes/, /test championship/];
+function isNationalSide(name) {
+  const n = (name || "").toLowerCase().trim();
+  if (!n || /women/.test(n) || /\ba$/.test(n)) return false;
+  return SS_NATIONAL.includes(n.replace(/\s+u19$/, ""));
+}
+function relevantSS(m) {
+  const comp = (m.competition || "").toLowerCase();
+  if (/women/.test(comp)) return false;
+  if (SS_LEAGUES.some((re) => re.test(comp))) return true;
+  return isNationalSide(m.home) || isNationalSide(m.away);
+}
+function mapSportScore(m) {
+  const slug = String(m.url || "").replace(/^\/cricket\/match\//, "").replace(/\/$/, "") || "match";
+  const digits = String(m.time || "").replace(/[^0-9]/g, "").slice(0, 12);
+  const t = Date.parse(m.time || "");
+  const cat = m.status === "live" ? "live" : m.status === "finished" ? "recent" : m.status === "upcoming" ? "upcoming" : null;
+  if (!cat || isNaN(t)) return null;
+  const hs = ssScore(m.home_score), as = ssScore(m.away_score);
+  let status = "";
+  if (cat === "live") status = (m.status_text || "Live").trim() || "Live";
+  else if (cat === "recent") status = ssResultText(m.home, m.away, hs, as);
+  else status = "Starts " + pktDateTime(m.time);
+  const fmt = ssFmt(m.competition);
+  const info = [["matchL", fmt + (m.competition ? " • " + m.competition : "")], ["datetimeL", pktDateTime(m.time)]].filter((p) => p[1]);
+  return {
+    id: "ss-" + slug + "-" + digits,
+    cat,
+    live: cat === "live",
+    fmt,
+    series: m.competition || "",
+    t1: { n: m.home || "", s: cat === "live" ? (hs || "–") : hs, o: "" },
+    t2: { n: m.away || "", s: cat === "live" ? (as || "–") : as, o: "" },
+    status,
+    detail: { info },
+  };
+}
+const SS_TEAMS = ["pakistan", "india", "australia", "england", "sri-lanka", "bangladesh", "new-zealand", "south-africa", "west-indies", "afghanistan", "zimbabwe", "ireland"];
+async function fetchCricketSportScore() {
+  // Main list (live + recent + ~next-day upcoming) plus each big team's
+  // own list — the main list omits multi-day Tests between days, but the
+  // team lists carry them (e.g. the PAK-SL Test at stumps).
+  const [main, ...teamRes] = await Promise.all([
+    fetchJson(SPORTSCORE_BASE, undefined, 6000, "ss-matches"),
+    ...SS_TEAMS.map((s) => fetchJson("https://sportscore.com/api/widget/team/?sport=cricket&slug=" + s + "&limit=10&src=cricgoals.online", undefined, 6000)),
+  ]);
+  const ok = main && Array.isArray(main.matches);
+  const list = ok ? main.matches.slice() : [];
+  let teamGot = 0;
+  for (const tr of teamRes) {
+    if (tr && Array.isArray(tr.matches)) { teamGot++; list.push(...tr.matches); }
+  }
+  const now = Date.now();
+  const live = [], recent = [], upcoming = [];
+  for (const m of list) {
+    if (!relevantSS(m)) continue;
+    const t = Date.parse(m.time || "");
+    if (isNaN(t)) continue;
+    if (m.status === "live") live.push(m);
+    else if (m.status === "finished") { if (t > now - 2 * 86400000) recent.push(m); }
+    else if (m.status === "upcoming") { if (t > now && t < now + 7 * 86400000) upcoming.push(m); }
+  }
+  recent.sort((a, b) => Date.parse(b.time) - Date.parse(a.time));
+  upcoming.sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
+  const out = [];
+  const seen = new Set();
+  const push = (m) => { const mm = mapSportScore(m); if (mm && !seen.has(mm.id)) { seen.add(mm.id); out.push(mm); } };
+  live.slice(0, 6).forEach(push);
+  recent.slice(0, 4).forEach(push);
+  upcoming.slice(0, 6).forEach(push);
+  diagCricket.sportScore = { ok: !!ok, total: list.length, teams: teamGot + "/" + SS_TEAMS.length, live: live.length, recent: recent.length, upcoming: upcoming.length, out: out.length, http: httpDiag["ss-matches"] || "n/a" };
+  if (!ok) return null;
+  return out.slice(0, 12);
+}
+// Cricket: prefer CricketData (full scorecards); fall back to SportScore
+// (basic scores) whenever CricketData is unreachable or returns nothing.
+async function fetchCricket() {
+  const [cd, ss] = await Promise.all([
+    fetchCricketData().catch(() => null),
+    fetchCricketSportScore().catch(() => null),
+  ]);
+  if (cd && cd.length) return cd;
+  if (ss !== null) return ss;
+  return cd;
 }
 
 // ---------- football ----------

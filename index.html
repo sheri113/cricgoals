@@ -628,9 +628,7 @@
       <h1 id="contactTitle"></h1>
       <p id="contactIntro"></p>
       <p class="contact-email"><span id="contactEmailLabel"></span> <a href="mailto:sheryarwaxir68@gmail.com">sheryarwaxir68@gmail.com</a></p>
-      <form class="cform" id="contactForm" name="contact" method="POST" data-netlify="true" netlify-honeypot="bot-field">
-        <input type="hidden" name="form-name" value="contact">
-        <p hidden><label>Do not fill this in: <input name="bot-field"></label></p>
+      <form class="cform" id="contactForm" name="contact" method="POST">
         <label><span data-clabel="name">Name</span><input type="text" id="cfName" name="name" autocomplete="name" required></label>
         <label><span data-clabel="email">Email</span><input type="email" id="cfEmail" name="email" autocomplete="email" required></label>
         <label><span data-clabel="message">Message</span><textarea id="cfMsg" name="message" required></textarea></label>
@@ -1988,14 +1986,13 @@ document.getElementById("contactForm").addEventListener("submit", function(e){
   btn.disabled = true;
   btn.textContent = pick(PG.cSending);
   var body = new URLSearchParams();
-  body.append("form-name", "contact");
   body.append("name", name);
   body.append("email", email);
+  body.append("_replyto", email);
   body.append("message", msg);
-  body.append("bot-field", form.querySelector('[name="bot-field"]').value);
-  fetch("/", {
+  fetch("https://formspree.io/f/xqpqzpwz", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: { "Content-Type": "application/x-www-form-urlencoded", "Accept": "application/json" },
     body: body.toString()
   }).then(function(res){
     btn.disabled = false;

@@ -392,8 +392,7 @@
   .foot-mark{font-family:"Source Serif 4",Georgia,serif;font-weight:900;color:#fff;font-size:1.9rem;margin:0 0 4px}
   .foot-mark span{color:#f2b705}
   .foot-tag{margin:0 0 24px;font-size:.92rem;color:#9aa39c;max-width:60ch}
-  .foot-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:26px;border-top:1px solid #262b28;padding-top:22px}
-  @media(max-width:860px){.foot-cols{grid-template-columns:repeat(2,1fr)}}
+  .foot-cols{display:grid;grid-template-columns:1fr;gap:26px;border-top:1px solid #262b28;padding-top:22px}
   @media(max-width:480px){.foot-cols{grid-template-columns:1fr}}
   .foot-cols h4{color:#fff;font-size:.78rem;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin:0 0 10px}
   .foot-cols ul{list-style:none;margin:0;padding:0}
@@ -705,38 +704,11 @@
     <p class="foot-tag">Cricket and football — every league, every story, in easy language.</p>
     <div class="foot-cols">
       <div>
-        <h4>Sports</h4>
-        <ul id="footSports"></ul>
-      </div>
-      <div>
-        <h4>Big Tournaments</h4>
-        <ul>
-          <li><button data-subgoto="cricket:psl">PSL</button></li>
-          <li><button data-subgoto="cricket:ipl">IPL</button></li>
-          <li><button data-subgoto="football:fifa">FIFA World Cup</button></li>
-          <li><button data-subgoto="football:epl">Premier League</button></li>
-          <li><button data-subgoto="football:ucl">Champions League</button></li>
-        </ul>
-      </div>
-      <div>
         <h4>Website</h4>
         <ul>
-          <li><a href="#headlinesSec">Headlines</a></li>
-          <li><a href="#tareeqa">How We Work Together</a></li>
-          <li><a href="#schedule">Posting Schedule</a></li>
           <li><button data-page="about">About</button></li>
           <li><button data-page="contact">Contact</button></li>
           <li><button data-page="privacy">Privacy Policy</button></li>
-          <li><a href="#top">Back to Top ↑</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4>About Cricgoals</h4>
-        <ul>
-          <li>Checked news only — reports labelled as reports</li>
-          <li>Every post approved before publishing</li>
-          <li>Languages: English, Roman Urdu, Urdu</li>
-          <li>Completely free — no paywall</li>
         </ul>
       </div>
     </div>
@@ -1015,9 +987,6 @@ function renderNav(){
     html += '</div>';
   });
   document.getElementById("sportNav").innerHTML = html;
-  var fh = "";
-  SPORTS.forEach(function(s){ fh += '<li><button data-sport="'+s.key+'">'+esc(SLABEL(s))+"</button></li>"; });
-  document.getElementById("footSports").innerHTML = fh;
 }
 
 /* sub-filters ab nav ke andar hi render hote hain */

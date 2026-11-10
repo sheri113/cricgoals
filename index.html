@@ -1398,7 +1398,7 @@ renderAll();
 </script>
 <script>
 /* ===== Live Scores — Cricbuzz style =====
-   Asli scores Netlify Function /.netlify/functions/live-scores se aate hain
+   Asli scores Cloudflare /live-scores se aate hain
    (CricketData.org cricket ke liye, football-data.org football ke liye) aur
    har 60 second me refresh hote hain. Is section me koi demo/sample data
    NAHI hai: function se data na mile to section intezaar wali haalat me
@@ -1548,7 +1548,7 @@ document.addEventListener("keydown", function(e){
 
 
 /* Live Scores me koi demo/sample data NAHI hai. CMATCH/FMATCH sirf asli
-   live feed (Netlify Function) se bharte hain. Jab tak feed se data nahi
+   live feed (Cloudflare) se bharte hain. Jab tak feed se data nahi
    aata, section intezaar wali haalat me rehta hai; feed band ho jaye to
    aakhri asli scores hi rukey rehte hain — demo kabhi nahi dikhta. */
 var CMATCH = [];
@@ -1804,7 +1804,7 @@ document.addEventListener("click", function(e){
   }
 });
 
-/* ----- live scores: Netlify Function se asli data, har 60 second refresh -----
+/* ----- live scores: Cloudflare se asli data, har 60 second refresh -----
    Function ka response: { cricket:[...matches...], football:[...matches...] }.
    Fetch fail ho ya dono arrays khaali hon to section wahin rukta hai jahan
    tha: pehle kabhi data na aaya ho to intezaar wali haalat, aur asli data
@@ -1855,7 +1855,7 @@ function normMatch(m, kind){
 }
 function loadLiveScores(){
   if(typeof fetch !== "function") return;
-  fetch("/.netlify/functions/live-scores", {cache:"no-store"})
+  fetch("/live-scores", {cache:"no-store"})
     .then(function(r){ if(!r.ok) throw new Error("live-scores HTTP " + r.status); return r.json(); })
     .then(function(data){
       var c = data && Array.isArray(data.cricket) ? data.cricket.map(function(m){ return normMatch(m, "cricket"); }).filter(Boolean) : [];

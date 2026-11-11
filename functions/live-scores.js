@@ -301,6 +301,57 @@ async function fetchCricketSportScore() {
   if (!ok) return null;
   return out.slice(0, 12);
 }
+// ---------- manual score override (hand-checked real data) ----------
+// CricketData is down (HTTP 525) and SportScore carries no Test scores, so
+// the PAK-SL Test would otherwise show "–" in live scores. This block is
+// REAL data checked by hand from Cricbuzz — update it at every session
+// break (lunch/tea/stumps) and remove it when CricketData recovers. It
+// only applies while the match is live and before 13 Nov 2026 ends, so it
+// can never keep showing a stale score after the Test is over.
+// Last updated: 11 Nov 2026 ~12:05 PKT (lunch, Day 3).
+const MANUAL_PAK_SL = {
+  id: "manual-pak-sl-test-1",
+  cat: "live",
+  live: true,
+  fmt: "Test",
+  series: "Test Series Pakistan vs Sri Lanka",
+  t1: { n: "Pakistan", s: "434/9d", o: "106.3 ov" },
+  t2: { n: "Sri Lanka", s: "200/4", o: "54 ov" },
+  status: "Lunch — Day 3",
+  detail: {
+    batsmen: [["Dhananjaya de Silva *", 81, 110, 8, 0, 73.64], ["Kusal Mendis *", 7, 25, 0, 0, 28.00]],
+    ks: [["crr", "3.70"], ["partnership", "45 (72)"], ["lastwkt", "Kamindu Mendis 58 (131)"], ["toss", "Sri Lanka won the toss and chose to field"]],
+    info: [["matchL", "Test • Test Series Pakistan vs Sri Lanka"], ["datetimeL", "Mon 9 Nov, 9:30 am PKT"], ["venueL", "Rawalpindi Cricket Stadium, Rawalpindi"]],
+  },
+};
+const MANUAL_VALID_UNTIL = Date.parse("2026-11-13T23:59:59+05:00");
+function isPakSlTest(m) {
+  if (!m) return false;
+  const s = ((m.series || "") + " " + (m.fmt || "")).toLowerCase();
+  const t1 = ((m.t1 && m.t1.n) || "").toLowerCase();
+  const t2 = ((m.t2 && m.t2.n) || "").toLowerCase();
+  return (m.fmt === "Test" || /test/.test(s)) && ((t1.includes("pakistan") && t2.includes("sri lanka")) || (t1.includes("sri lanka") && t2.includes("pakistan")));
+}
+function needsManual(m) {
+  if (!m) return false;
+  const s1 = (m.t1 && m.t1.s) || "";
+  const s2 = (m.t2 && m.t2.s) || "";
+  return !s1 || s1 === "–" || !s2 || s2 === "–";
+}
+function applyManualCricket(list) {
+  if (Date.now() >= MANUAL_VALID_UNTIL) return list;
+  const arr = Array.isArray(list) ? list.slice() : [];
+  const idx = arr.findIndex(isPakSlTest);
+  if (idx >= 0) {
+    // Only override while the match is still live and its score is missing.
+    if (arr[idx].cat === "live" && needsManual(arr[idx])) {
+      arr[idx] = { ...MANUAL_PAK_SL, id: arr[idx].id };
+    }
+    return arr;
+  }
+  // Test not in the feed at all (both sources failed) — add the manual entry.
+  return [MANUAL_PAK_SL, ...arr].slice(0, 12);
+}
 // Cricket: prefer CricketData (full scorecards); fall back to SportScore
 // (basic scores) whenever CricketData is unreachable or returns nothing.
 async function fetchCricket() {
@@ -308,9 +359,11 @@ async function fetchCricket() {
     fetchCricketData().catch(() => null),
     fetchCricketSportScore().catch(() => null),
   ]);
-  if (cd && cd.length) return cd;
-  if (ss !== null) return ss;
-  return cd;
+  let out = null;
+  if (cd && cd.length) out = cd;
+  else if (ss !== null) out = ss;
+  else out = cd;
+  return applyManualCricket(out);
 }
 
 // ---------- football ----------

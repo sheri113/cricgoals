@@ -6,6 +6,66 @@
 <meta name="color-scheme" content="light dark" />
 <link rel="icon" href="data:," />
 <title>Cricgoals — Every Sport, Every Story</title>
+<meta name="description" content="Cricgoals — cricket and football news, live scores, match reports and analysis in English, Roman Urdu and Urdu. Pakistan vs Sri Lanka, India vs New Zealand, Manchester United and more.">
+<link rel="canonical" href="https://cricgoals.online/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Cricgoals">
+<meta property="og:title" content="Cricgoals — Every Sport, Every Story">
+<meta property="og:description" content="Cricgoals — cricket and football news, live scores, match reports and analysis in English, Roman Urdu and Urdu. Pakistan vs Sri Lanka, India vs New Zealand, Manchester United and more.">
+<meta property="og:url" content="https://cricgoals.online/">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ur_PK">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Cricgoals — Every Sport, Every Story">
+<meta name="twitter:description" content="Cricgoals — cricket and football news, live scores, match reports and analysis in English, Roman Urdu and Urdu. Pakistan vs Sri Lanka, India vs New Zealand, Manchester United and more.">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "url": "https://cricgoals.online/",
+      "name": "Cricgoals",
+      "inLanguage": ["en", "ur"]
+    },
+    {
+      "@type": "NewsArticle",
+      "headline": "Pakistan declare 434-9, Sri Lanka 114-3 at Day 2 stumps — Saud 93, debutant Minhas 52, Saqib strikes twice",
+      "author": {"@type": "Person", "name": "Sheryar Khan"},
+      "publisher": {"@type": "Organization", "name": "Cricgoals", "url": "https://cricgoals.online/"},
+      "datePublished": "2026-11-10"
+    },
+    {
+      "@type": "NewsArticle",
+      "headline": "Carrick's future decided today? Monaco meeting, Pochettino favourite — but keeping him is also on the table",
+      "author": {"@type": "Person", "name": "Sheryar Khan"},
+      "publisher": {"@type": "Organization", "name": "Cricgoals", "url": "https://cricgoals.online/"},
+      "datePublished": "2026-11-10"
+    },
+    {
+      "@type": "NewsArticle",
+      "headline": "Pakistan U19 beat Nepal U19 by 101 runs — Farhan 74 leads defending champions to big win",
+      "author": {"@type": "Person", "name": "Sheryar Khan"},
+      "publisher": {"@type": "Organization", "name": "Cricgoals", "url": "https://cricgoals.online/"},
+      "datePublished": "2026-11-10"
+    },
+    {
+      "@type": "NewsArticle",
+      "headline": "Rain washes out India vs New Zealand 3rd ODI in Hamilton — India keep 2-0 series lead",
+      "author": {"@type": "Person", "name": "Sheryar Khan"},
+      "publisher": {"@type": "Organization", "name": "Cricgoals", "url": "https://cricgoals.online/"},
+      "datePublished": "2026-11-11"
+    },
+    {
+      "@type": "NewsArticle",
+      "headline": "Day 3 in Rawalpindi — Sri Lanka 120-3, trailing by 314, Kamindu and Dhananjaya hold firm",
+      "author": {"@type": "Person", "name": "Sheryar Khan"},
+      "publisher": {"@type": "Organization", "name": "Cricgoals", "url": "https://cricgoals.online/"},
+      "datePublished": "2026-11-11"
+    }
+  ]
+}
+</script>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-N0WJREZJFL"></script>
 <script>
@@ -1056,7 +1116,7 @@ function renderSections(){
     var lead = list[0];
     html += '<div class="sport-grid">'
       +   '<article class="lead-card" data-open="'+lead.id+'">'
-      +     '<img src="'+PIMG(lead)+'" alt="'+esc(PALT(lead))+'">'
+      +     '<img loading="lazy" src="'+PIMG(lead)+'" alt="'+esc(PALT(lead))+'">'
       +     '<h3>'+esc(PT(lead))+'</h3>'
       +     '<p class="dek">'+esc(PD(lead))+'</p>'
       +     '<p class="byline"><b>Cricgoals</b> — News Desk • '+esc(PTIME(lead))+'</p>'
@@ -1065,7 +1125,7 @@ function renderSections(){
     for(var i=1;i<list.length;i++){
       var p = list[i];
       html += '<button class="side-item" data-open="'+p.id+'">'
-        + '<img src="'+PIMG(p)+'" alt="'+esc(PALT(p))+'">'
+        + '<img loading="lazy" src="'+PIMG(p)+'" alt="'+esc(PALT(p))+'">'
         + '<span><h4>'+esc(PT(p))+'</h4><p>'+esc(PTIME(p))+DEMOSUF[LANG]+'</p></span>'
         + '</button>';
     }
